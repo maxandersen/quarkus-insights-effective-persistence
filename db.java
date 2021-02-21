@@ -184,77 +184,66 @@ class GreetingService {
 
     };
 
-    @SuppressWarnings("unchecked") // here as we are dealing with non-type-safe streams
+    @SuppressWarnings({"unchecked", "deprecation"}) // here as we are dealing with non-type-safe streams
     void sayHello(String name) {
         System.out.println("Hello " + name + "!");
 
         Statistics statistics = em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
 
-       // stats(statistics);
+        // stats(statistics);
 
-       // updateViaEntity();
+        // updateViaEntity();
 
         // System.out.println(statistics);
-       // stats(statistics);
+        // stats(statistics);
 
-       // nativeQueries();
+        // nativeQueries();
 
         String sql = """
-        select extract(year from pay.payment_date) y, extract(month from pay.payment_date) m, stf.first_name, stf.last_name, sum(pay.amount)
-        from staff stf
-        left join payment pay
-        on stf.staff_id = pay.staff_id
-        group by y, m, stf.first_name, stf.last_name
-        """;
-         
-         Session session = getSession();
+                select extract(year from pay.payment_date) y, extract(month from pay.payment_date) m, stf.first_name, stf.last_name, sum(pay.amount)
+                from staff stf
+                left join payment pay
+                on stf.staff_id = pay.staff_id
+                group by y, m, stf.first_name, stf.last_name
+                """;
 
-         List<Map> list = session.createSQLQuery(sql)
-         .setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP).list();
-        
-         list.forEach(item -> {
-            print(item.get("first_name") + " sold for " + item.get("sum") + " in " + item.get("y") + "-" + item.get("m"));
-         }); 
+        Session session = getSession();
 
-         print("Explicit types");
+        List<Map> list = session.createSQLQuery(sql).setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP).list();
 
-         list = session.createSQLQuery(sql)
-         .addScalar("y", LongType.INSTANCE)
-         .addScalar("m", LongType.INSTANCE)
-         .addScalar("sum")
-         .addScalar("first_name")
-         .addScalar("last_name")
-         .setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP).list();
-        
-         list.forEach(item -> {
-            print(item.get("first_name") + " sold for " + item.get("sum") + " in " + item.get("y") + "-" + item.get("m"));
-         }); 
+        list.forEach(item -> {
+            print(item.get("first_name") + " sold for " + item.get("sum") + " in " + item.get("y") + "-"
+                    + item.get("m"));
+        });
 
-         print("DTO's");
+        print("Explicit types");
 
+        list = session.createSQLQuery(sql).addScalar("y", LongType.INSTANCE).addScalar("m", LongType.INSTANCE)
+                .addScalar("sum").addScalar("first_name").addScalar("last_name")
+                .setResultTransformer(Transformers.ALIAS_TO_ENTITY_MAP).list();
 
+        list.forEach(item -> {
+            print(item.get("first_name") + " sold for " + item.get("sum") + " in " + item.get("y") + "-"
+                    + item.get("m"));
+        });
 
+        print("DTO's");
 
-         
-         List<SaleDTO> typeDtos = session.createSQLQuery(sql)
-         .addScalar("y", LongType.INSTANCE)
-         .addScalar("m", LongType.INSTANCE)
-         .addScalar("sum")
-         .addScalar("first_name")
-         .addScalar("last_name")
-         .setResultTransformer(Transformers.aliasToBean(SaleDTO.class)).list();
-        
-         typeDtos.forEach(item -> {
+        List<SaleDTO> typeDtos = session.createSQLQuery(sql)
+                .addScalar("y", LongType.INSTANCE)
+                .addScalar("m", LongType.INSTANCE)
+                .addScalar("sum")
+                .addScalar("first_name")
+                .addScalar("last_name")
+                .setResultTransformer(Transformers.aliasToBean(SaleDTO.class)).list();
+
+        typeDtos.forEach(item -> {
             print(item.first_name + " sold for " + item.sum + " in " + item.y + "-" + item.m);
-         }); 
+        });
 
-
-
-         
-        
     }
 
-    static public class SaleDTO { 
+    static public class SaleDTO {
         public long m;
         public long y;
         public String first_name;
@@ -284,18 +273,21 @@ class GreetingService {
                     LIMIT 1;
                 """;
 
-        DSLContext create = DSL.using(session.connection(), SQLDialect.POSTGRES);
+        session.doWork(connection -> {
+            DSLContext create = DSL.using(connection, SQLDialect.POSTGRES);
 
-        Field<Integer> COUNT = DSL.field("COUNT(*)", Integer.class);
+            Field<Integer> COUNT = DSL.field("COUNT(*)", Integer.class);
 
-        sql = create.select(ACTOR.FIRST_NAME, ACTOR.LAST_NAME, COUNT.as("films")).from(ACTOR).join(FILM_ACTOR)
-                .using(FILM_ACTOR.ACTOR_ID).groupBy(ACTOR.ACTOR_ID, ACTOR.FIRST_NAME, ACTOR.LAST_NAME)
-                .orderBy(COUNT.desc()).limit(1).getSQL(ParamType.INLINED);
+            String jooqsql = create.select(ACTOR.FIRST_NAME, ACTOR.LAST_NAME, COUNT.as("films")).from(ACTOR).join(FILM_ACTOR)
+                    .using(FILM_ACTOR.ACTOR_ID).groupBy(ACTOR.ACTOR_ID, ACTOR.FIRST_NAME, ACTOR.LAST_NAME)
+                    .orderBy(COUNT.desc()).limit(1).getSQL(ParamType.INLINED);
 
-        print(sql);
+            //print(jooqsql);
 
-        print(session.createSQLQuery(sql).addScalar("first_name", StringType.INSTANCE)
-                .addScalar("last_name", StringType.INSTANCE).addScalar("films", LongType.INSTANCE).getSingleResult());
+            print(session.createSQLQuery(jooqsql).addScalar("first_name", StringType.INSTANCE)
+                    .addScalar("last_name", StringType.INSTANCE).addScalar("films", LongType.INSTANCE)
+                    .getSingleResult());
+        });
 
     }
 }

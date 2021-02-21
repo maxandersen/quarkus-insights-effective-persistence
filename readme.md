@@ -2,6 +2,8 @@
 
 A nice big mix of jbang, quarkus, hibernate, sakila test db, postgres and some jooq for fun.
 
+Edit the example using jbang: `j! edit --open db.java`
+
 This readme.md is a obsidian.md presentation/note document.
 
 ---
