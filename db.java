@@ -1,9 +1,9 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//JAVA 15
+//JAVA 16
 //SOURCES **/*.java
 // SOURCES sakila/**/*.java
 
-//DEPS io.quarkus:quarkus-bom:${quarkus.version:1.11.3.Final}@pom
+//DEPS io.quarkus:quarkus-bom:${quarkus.version:2.0.0.Final}@pom
 //DEPS io.quarkus:quarkus-hibernate-orm-panache
 //DEPS io.quarkus:quarkus-jdbc-postgresql
 //DEPS org.postgresql:postgresql:42.2.14
@@ -17,10 +17,10 @@
 
 //Q:CONFIG quarkus.banner.enabled=false
 //Q:CONFIG quarkus.log.level=WARN
-//  Q:CONFIG quarkus.log.category."org.hibernate.stat".level=DEBUG
-//Q:CONFIG quarkus.hibernate-orm.log.sql=true
+//Q:CONFIG quarkus.log.category."org.hibernate.stat".level=DEBUG
+//Q:CONFIG quarkus.hibernate-orm.log.sql=falses
 //Q:CONFIG quarkus.hibernate-orm.log.format-sql=true
-//Q:CONFIG quarkus.hibernate-orm.jdbc.statement-batch-size=0
+//Q:CONFIG quarkus.hibernate-orm.jdbc.statement-batch-size=20
 
 //Q:CONFIG quarkus.datasource.db-kind=postgresql
 //Q:CONFIG quarkus.datasource.username=postgres
@@ -58,6 +58,7 @@ import org.hibernate.type.LongType;
 import org.hibernate.type.StringType;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
+import io.quarkus.narayana.jta.runtime.TransactionConfiguration;
 import io.quarkus.runtime.QuarkusApplication;
 import io.quarkus.runtime.annotations.QuarkusMain;
 
@@ -129,28 +130,35 @@ class DbService {
     void doData(String name) throws Exception {
         System.out.println("Hello " + name + "!");
 
-        //managedUpdate();
+       //managedUpdate();
 
-        // bulkProcessing();
-        //bulkStatelessProcessing();
+       //bulkProcessing(true);
+       //bulkStatelessProcessing();
 
-        // nativeQueries();
+      //nativeQueries();
 
-        // resultTransformers();
+         resultTransformers();
 
     }
 
-    private void bulkProcessing() {
+    @TransactionConfiguration(timeout = 50000)
+    private void bulkProcessing(boolean manual) {
         System.out.println("Insert lots of rows");
         for (int i = 0; i < 100000; i++) {
-            db.Language lang = new db.Language();
+            db.Language lang = new db.Language();   
             lang.name = "A-" + i;
+            System.out.println(lang.name);
             em.persist(lang);
+            if(manual) {
+            if ( i % 100 == 0 ) {
+                              //commit and begin to do it manually in batches.
+                              System.out.println("Manual flush!");
+                           em.flush();
+                           em.clear();
+                         }
         }
+       }
     }
-
-    @Inject
-    UserTransaction transaction;
 
     private void bulkStatelessProcessing() throws Exception {
         StatelessSession ss = getStatelessSession();
@@ -161,12 +169,7 @@ class DbService {
             lang.name = "A-" + i;
             System.out.println(lang.name);
             ss.insert(lang);
-            if ( i % 20 == 0 ) {
-                //commit and begin to do it manually in batches.
-                System.out.println("Manual commit!");
-                transaction.commit();
-                transaction.begin();
-            }
+            
         }
     }
 
